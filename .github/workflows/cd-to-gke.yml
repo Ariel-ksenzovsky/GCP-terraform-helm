@@ -134,7 +134,7 @@ jobs:
       - name: rollout flask-app from k8s
         run: |
           set -ex
-          kubectl rollout restart deployment my-deployment || true
+          kubectl rollout restart deployment flask-app || true
 
       - name: Add Helm Repo
         run: |
