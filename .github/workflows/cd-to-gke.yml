@@ -131,10 +131,10 @@ jobs:
           helm repo index charts/ --url https://helm-flask-star-images.s3.amazonaws.com/charts 
           aws s3 cp charts/index.yaml s3://helm-flask-star-images/charts/index.yaml
 
-      - name: delete flask-app from k8s
+      - name: rollout flask-app from k8s
         run: |
           set -ex
-          kubectl delete all --all || true
+          kubectl rollout restart deployment my-deployment || true
 
       - name: Add Helm Repo
         run: |
