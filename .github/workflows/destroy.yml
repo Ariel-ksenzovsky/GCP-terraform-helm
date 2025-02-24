@@ -18,21 +18,21 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure gcp Credentials
+        uses: gcp-actions/configure-gcp-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          gcp-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          gcp-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          gcp-region: us-east-1
     
       - name: Terraform init
         run: |
           ls
           pwd
-          cd terraform-aws
+          cd terraform-gcp
           terraform init
     
       - name: Terraform Destroy
         run: |
-          cd terraform-aws
+          cd terraform-gcp
           terraform destroy -auto-approve
