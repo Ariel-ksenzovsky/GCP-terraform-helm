@@ -61,6 +61,13 @@ The Helm chart includes configurations for the application deployment, service, 
 ### Helm Package & S3 Storage
 Helm charts are packaged and stored in an S3 bucket, enabling version-controlled deployments. The packaged charts can then be installed from the S3 storage into the Kubernetes cluster.
 
+### Security Considerations
+Ensuring security best practices is crucial to protect the application from vulnerabilities. In this project a couple of security measures are used to ensure that:
+
+- **GitHub Secrets:** Used for CI/CD pipeline credentials such as Docker and GitHub tokens, ensuring sensitive information isn't exposed.
+- **Kubernetes Secrets:** Database credentials are stored securely in base64-encoded Kubernetes secrets.
+- **Git and Docker Ignorance:** .gitignore and .dockerignore files prevent sensitive or unnecessary files from being tracked or added to Docker images.
+
 ## Cleanup Workflow
 
 A scheduled GitHub Actions workflow removes:
