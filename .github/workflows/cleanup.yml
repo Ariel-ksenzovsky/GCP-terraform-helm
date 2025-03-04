@@ -85,6 +85,9 @@ jobs:
               chart_date=$(echo $line | awk '{print $1 " " $2}')
               chart_name=$(echo $line | awk '{print $4}')
               
+              # Remove the 'charts/' prefix from the chart name
+              chart_name_without_prefix=$(echo $chart_name | sed 's/^charts\///')
+              
               # Convert chart date to timestamp
               chart_timestamp=$(date -d "$chart_date" +%s)
               
@@ -93,8 +96,9 @@ jobs:
         
               # Compare the chart's timestamp with the retention threshold
               if [ $chart_timestamp -lt $threshold_timestamp ]; then
-                echo "Deleting old chart: $chart_name"
-                aws s3 rm "s3://helm-flask-star-images/charts/$chart_name"
+                echo "Deleting old chart: $chart_name_without_prefix"
+                aws s3api delete-object --bucket helm-flask-star-images --key "charts/$chart_name_without_prefix"
               fi
             done <<< "$charts"
+        
         
