@@ -34,14 +34,31 @@ jobs:
           credentials: ${{ secrets.GCP_SA_KEY }}
 
     
-      - name: Terraform init
+      - name: Install gke-gcloud-auth-plugin
         run: |
-          ls
-          pwd
+          # Install the Google Cloud SDK if it's not already installed
+          curl https://sdk.cloud.google.com | bash
+          source $HOME/google-cloud-sdk/path.bash.inc
+          # Install the plugin using the appropriate command
+          gcloud components update
+          gcloud components install gke-gcloud-auth-plugin
+  
+  
+      - name: Set up Google Cloud credentials for Terraform
+        run: |
+          ECHO '${{ secrets.GCP_SA_KEY }}' | base64 --decode > /tmp/key.json
+          echo "GOOGLE_CREDENTIALS=/tmp/key.json" >> $GITHUB_ENV
+  
+      - name: Initialize Terraform
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+        run: |
           cd terraform-gcp
           terraform init
-    
-      - name: Terraform Destroy
+  
+      - name: Apply Terraform
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
         run: |
           cd terraform-gcp
-          terraform destroy -auto-approve
+          terraform apply -auto-approve
