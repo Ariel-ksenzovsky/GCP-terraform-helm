@@ -1,89 +1,72 @@
-name: Clean Up Docker Images and S3 Files
+name: Cleanup Old Images and Helm Charts
 
 on:
   workflow_dispatch:
     inputs:
-      max_days:
-        description: "Delete images older than (days)"
-        required: false
-        default: "30"
+      retention_days:
+        description: 'Number of days to retain images and charts'
+        required: true
+        type: number
 
 jobs:
-  delete_old_docker_images:
+  cleanup:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Docker login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }} 
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Install jq
-        run: sudo apt update && sudo apt install -y jq
-
-      - name: Get and Delete Old Docker Images
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          REPO: "arielk2511/star_meme_sql_compose"
-          MAX_DAYS: ${{ github.event.inputs.max_days }}
+      - name: Cleanup Docker Hub Images
         run: |
-          MAX_DAYS=${MAX_DAYS:-30}
-          echo "Deleting Docker images older than $MAX_DAYS days..."
+          # Docker Hub credentials
+          echo "${{ secrets.DOCKER_USERNAME }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-          TOKEN=$(curl -s -X POST -u "$DOCKER_USERNAME:$DOCKER_PASSWORD" "https://hub.docker.com/v2/users/login/" | jq -r .token)
+          # Set the retention threshold in days
+          retention_days="${{ github.event.inputs.retention_days }}"
 
-          TAGS=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100" | jq -r '.results[] | @tsv')
+          # Get the list of repositories (images) from Docker Hub
+          repos=$(curl -s -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/?page_size=100" \
+            | jq -r '.results[].name')
 
-          CURRENT_DATE=$(date -u +%s)
-          CUTOFF_DATE=$(date -u -d "$(date -u +%Y-%m-%d) -${MAX_DAYS} days" +%s)
+          for repo in $repos; do
+            echo "Cleaning up images from repository: $repo"
 
-          echo "$TAGS" | while IFS=$'\t' read -r TAG PUSHED_DATE; do
-            PUSHED_TIMESTAMP=$(date -d "$PUSHED_DATE" +%s || echo 0)
+            # Get image tags older than the retention threshold
+            tags=$(curl -s -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
+              "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${repo}/tags/?page_size=100" \
+              | jq -r ".results[] | select(.last_updated | fromdateiso8601 < $(date -d "$retention_days days ago" +%s)) | .name")
 
-            if [[ $PUSHED_TIMESTAMP -lt $CUTOFF_DATE ]]; then
-              echo "Finding digest for tag: $TAG..."
-              DIGEST=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/" | jq -r '.digest')
-
-              if [[ "$DIGEST" != "null" && -n "$DIGEST" ]]; then
-                echo "Deleting tag: $TAG (Digest: $DIGEST)"
-                curl -s -X DELETE -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/manifests/$DIGEST/"
-              else
-                echo "Skipping: Could not find digest for tag $TAG"
-              fi
-            fi
+            for tag in $tags; do
+              echo "Deleting tag: $tag from repository: $repo"
+              curl -s -X DELETE -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
+                "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${repo}/tags/${tag}/"
+            done
           done
 
-          echo "Done deleting images older than $MAX_DAYS days from Docker Hub."
-
-  delete_old_s3_files:
-    runs-on: ubuntu-latest
-    needs: delete_old_docker_images
-    steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Delete Files Older Than X Days from S3
-        env:
-          MAX_DAYS: ${{ github.event.inputs.max_days }}
+      - name: Cleanup Helm Charts from S3 Bucket
         run: |
-          MAX_DAYS=${MAX_DAYS:-30}
-          echo "Deleting files older than $MAX_DAYS days from S3..."
-          
-          aws s3 ls s3://${{ secrets.AWS_BUCKET_NAME }}/ --recursive | while read line; do
-            file_date=$(echo $line | awk '{print $1" "$2}')
-            file_path=$(echo $line | awk '{print $4}')
-            file_timestamp=$(date -d "$file_date" +%s)
-            cutoff_date=$(date -d "$MAX_DAYS days ago" +%s)
+          # Set the retention threshold in days
+          retention_days="${{ github.event.inputs.retention_days }}"
 
-            if [[ $file_timestamp -lt $cutoff_date ]]; then
-              echo "Deleting: $file_path (Last modified: $file_date)"
-              aws s3 rm s3://${{ secrets.AWS_BUCKET_NAME }}/$file_path
+          # List Helm charts in the S3 bucket
+          charts=$(aws s3 ls s3://your-helm-charts-bucket/ --recursive | awk '{print $4, $1}')
+
+          for chart in $charts; do
+            chart_name=$(echo $chart | awk '{print $1}')
+            chart_date=$(echo $chart | awk '{print $2}')
+            chart_timestamp=$(date -d "$chart_date" +%s)
+            threshold_timestamp=$(date -d "$retention_days days ago" +%s)
+
+            if [ $chart_timestamp -lt $threshold_timestamp ]; then
+              echo "Deleting old chart: $chart_name"
+              aws s3 rm s3://your-helm-charts-bucket/$chart_name
             fi
           done
-
-          echo "Done deleting files older than $MAX_DAYS days from S3."
