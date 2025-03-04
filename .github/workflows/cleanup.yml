@@ -12,7 +12,7 @@ jobs:
   delete_old_docker_images:
     runs-on: ubuntu-latest
     steps:
-      - name: docker login
+      - name: Docker login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -20,57 +20,37 @@ jobs:
 
       - name: Install jq
         run: sudo apt update && sudo apt install -y jq
-        
 
-      - name: Debug Docker API
-        env:
-            DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-            DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-            REPO: "arielk2511/star_meme_sql_compose"
-        run: |
-            echo "Logging into Docker Hub..."
-            TOKEN=$(curl -s -X POST -u $DOCKER_USERNAME:$DOCKER_PASSWORD "https://hub.docker.com/v2/users/login/" | jq -r .token)
-    
-            echo "Fetching tags for $REPO..."
-            RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100")
-        
-            echo "API Response:"
-            echo "$RESPONSE" | jq .
-    
-            echo "Extracting tags..."
-            TAGS=$(echo "$RESPONSE" | jq -r '.results[] | "\(.name) \(.tag_last_pushed)"')
-    
-            if [[ -z "$TAGS" || "$TAGS" == "null" ]]; then
-              echo "No tags found or API returned null."
-              exit 1
-            fi
-    
-            echo "Fetched tags:"
-            echo "$TAGS"    
-          
       - name: Get and Delete Old Docker Images
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          REPO: "arielk2511/star_meme_sql_compose" # Change to your DockerHub repo
-          MAX_DAYS: ${{ github.event.inputs.max_days || 30 }} # Default to 30 if not provided
+          REPO: "arielk2511/star_meme_sql_compose"
+          MAX_DAYS: ${{ github.event.inputs.max_days }}
         run: |
-          echo "Fetching Docker tags for $REPO..."
-          TOKEN=$(curl -s -X POST -u $DOCKER_USERNAME:$DOCKER_PASSWORD "https://hub.docker.com/v2/users/login/" | jq -r .token)
+          MAX_DAYS=${MAX_DAYS:-30}
+          echo "Deleting Docker images older than $MAX_DAYS days..."
 
-          TAGS=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100" | jq -r '.results[] | "\(.name) \(.tag_last_pushed)"')
+          TOKEN=$(curl -s -X POST -u "$DOCKER_USERNAME:$DOCKER_PASSWORD" "https://hub.docker.com/v2/users/login/" | jq -r .token)
 
-          CURRENT_DATE=$(date +%s)
-          CUTOFF_DATE=$(date -d "$MAX_DAYS days ago" +%s)
+          TAGS=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100" | jq -r '.results[] | @tsv')
 
-          echo "$TAGS" | while read TAG_INFO; do
-            TAG=$(echo "$TAG_INFO" | awk '{print $1}')
-            PUSHED_DATE=$(echo "$TAG_INFO" | awk '{print $2}')
+          CURRENT_DATE=$(date -u +%s)
+          CUTOFF_DATE=$(date -u -d "$(date -u +%Y-%m-%d) -${MAX_DAYS} days" +%s)
+
+          echo "$TAGS" | while IFS=$'\t' read -r TAG PUSHED_DATE; do
             PUSHED_TIMESTAMP=$(date -d "$PUSHED_DATE" +%s || echo 0)
 
             if [[ $PUSHED_TIMESTAMP -lt $CUTOFF_DATE ]]; then
-              echo "Deleting old image tag: $TAG (Pushed: $PUSHED_DATE)"
-              curl -s -X DELETE -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/"
+              echo "Finding digest for tag: $TAG..."
+              DIGEST=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/" | jq -r '.digest')
+
+              if [[ "$DIGEST" != "null" && -n "$DIGEST" ]]; then
+                echo "Deleting tag: $TAG (Digest: $DIGEST)"
+                curl -s -X DELETE -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/manifests/$DIGEST/"
+              else
+                echo "Skipping: Could not find digest for tag $TAG"
+              fi
             fi
           done
 
@@ -89,9 +69,11 @@ jobs:
 
       - name: Delete Files Older Than X Days from S3
         env:
-          MAX_DAYS: ${{ github.event.inputs.max_days || 30 }} # Default to 30 if not provided
+          MAX_DAYS: ${{ github.event.inputs.max_days }}
         run: |
+          MAX_DAYS=${MAX_DAYS:-30}
           echo "Deleting files older than $MAX_DAYS days from S3..."
+          
           aws s3 ls s3://${{ secrets.AWS_BUCKET_NAME }}/ --recursive | while read line; do
             file_date=$(echo $line | awk '{print $1" "$2}')
             file_path=$(echo $line | awk '{print $4}')
@@ -103,4 +85,5 @@ jobs:
               aws s3 rm s3://${{ secrets.AWS_BUCKET_NAME }}/$file_path
             fi
           done
+
           echo "Done deleting files older than $MAX_DAYS days from S3."
