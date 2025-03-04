@@ -16,12 +16,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Debug Docker Login Secrets
+        run: |
+          echo "Docker Hub Username: ${{ secrets.DOCKER_USERNAME }}"
+          # Be careful not to print the password or token!
+
+      - name: Docker Hub login
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
       - name: Cleanup Docker Hub Images
         run: |
           # Docker Hub credentials
-          echo "${{ secrets.DOCKER_USERNAME }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-          # Set the retention threshold in days
           retention_days="${{ github.event.inputs.retention_days }}"
 
           # Get the list of repositories (images) from Docker Hub
@@ -49,7 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Cleanup Helm Charts from S3 Bucket
         run: |
