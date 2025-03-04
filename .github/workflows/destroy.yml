@@ -24,6 +24,15 @@ jobs:
           gcp-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           gcp-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           gcp-region: us-east-1
+
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
+        with:
+          version: 'latest'
+          project_id: ${{ secrets.GCP_PROJECT }}
+          credentials: ${{ secrets.GCP_SA_KEY }}
+
     
       - name: Terraform init
         run: |
