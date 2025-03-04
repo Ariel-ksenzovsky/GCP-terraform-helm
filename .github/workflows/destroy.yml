@@ -19,7 +19,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Configure gcp Credentials
-        uses: gcp-actions/configure-gcp-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           gcp-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           gcp-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -61,4 +61,4 @@ jobs:
           GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
         run: |
           cd terraform-gcp
-          terraform apply -auto-approve
+          terraform destroy -auto-approve
