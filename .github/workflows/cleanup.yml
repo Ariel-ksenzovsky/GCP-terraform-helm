@@ -18,6 +18,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }} 
 
+      - name: Install jq
+        run: sudo apt update && sudo apt install -y jq
+        
+
       - name: Debug Docker API
         env:
             DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
