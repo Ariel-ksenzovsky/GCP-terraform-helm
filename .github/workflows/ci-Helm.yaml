@@ -30,6 +30,11 @@ jobs:
     environment: 'production'
 
     steps:
+
+      - name: sleep 60 seconds for concurrency
+        run: |
+          sleep 60
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -52,10 +57,10 @@ jobs:
           sed -i "s/^version:.*/version: $CHART_VERSION/" charts/flask-app/Chart.yaml
           cat charts/flask-app/Chart.yaml  # Debugging to verify update
     
-          - name: Package Helm Chart
-          run: |
-            helm package charts/flask-app
-            mv flask-app-*.tgz charts/
+      - name: Package Helm Chart
+        run: |
+          helm package charts/flask-app
+          mv flask-app-*.tgz charts/
       
       - name: Upload Helm Chart to S3
         run: |
