@@ -100,30 +100,3 @@ jobs:
             fi
           done
           echo "Done deleting files older than $MAX_DAYS days from S3."
-
-
-    - name: Debug Docker API
-      env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        REPO: "arielk2511/star_meme_sql_compose"
-      run: |
-        echo "Logging into Docker Hub..."
-        TOKEN=$(curl -s -X POST -u "$DOCKER_USERNAME:$DOCKER_PASSWORD" "https://hub.docker.com/v2/users/login/" | jq -r .token)
-
-        echo "Fetching tags for $REPO..."
-        RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100")
-    
-        echo "API Response:"
-        echo "$RESPONSE" | jq .
-
-        echo "Extracting tags..."
-        TAGS=$(echo "$RESPONSE" | jq -r '.results[] | "\(.name) \(.tag_last_pushed)"')
-
-        if [[ -z "$TAGS" || "$TAGS" == "null" ]]; then
-          echo "No tags found or API returned null."
-          exit 1
-        fi
-
-        echo "Fetched tags:"
-        echo "$TAGS"
