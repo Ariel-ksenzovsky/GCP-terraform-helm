@@ -16,14 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Debug Docker Login Secrets
-        run: |
-          echo "Docker Hub Username: ${{ secrets.DOCKER_USERNAME }}"
-          # Be careful not to print the password or token!
-
       - name: Docker Hub login
         run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Cleanup Docker Hub Images
         run: |
@@ -31,22 +26,22 @@ jobs:
           retention_days="${{ github.event.inputs.retention_days }}"
 
           # Get the list of repositories (images) from Docker Hub
-          repos=$(curl -s -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
-            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/?page_size=100" \
+          repos=$(curl -s -u "${{ secrets.DOCKER_HUB_USERNAME }}:${{ secrets.DOCKER_HUB_PASSWORD }}" \
+            "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/?page_size=100" \
             | jq -r '.results[].name')
 
           for repo in $repos; do
             echo "Cleaning up images from repository: $repo"
 
             # Get image tags older than the retention threshold
-            tags=$(curl -s -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
-              "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${repo}/tags/?page_size=100" \
-              | jq -r ".results[] | select(.last_updated | fromdateiso8601 < $(date -d "$retention_days days ago" +%s)) | .name")
+            tags=$(curl -s -u "${{ secrets.DOCKER_HUB_USERNAME }}:${{ secrets.DOCKER_HUB_PASSWORD }}" \
+              "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/${repo}/tags/?page_size=100" \
+              | jq -r ".results[] | select(.last_updated | sub(\"\\.[0-9]+Z$\"; \"Z\") | fromdateiso8601 < $(date -d "$retention_days days ago" +%s)) | .name")
 
             for tag in $tags; do
               echo "Deleting tag: $tag from repository: $repo"
-              curl -s -X DELETE -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }}" \
-                "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${repo}/tags/${tag}/"
+              curl -s -X DELETE -u "${{ secrets.DOCKER_HUB_USERNAME }}:${{ secrets.DOCKER_HUB_PASSWORD }}" \
+                "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/${repo}/tags/${tag}/"
             done
           done
 
@@ -68,11 +63,4 @@ jobs:
           for chart in $charts; do
             chart_name=$(echo $chart | awk '{print $1}')
             chart_date=$(echo $chart | awk '{print $2}')
-            chart_timestamp=$(date -d "$chart_date" +%s)
-            threshold_timestamp=$(date -d "$retention_days days ago" +%s)
-
-            if [ $chart_timestamp -lt $threshold_timestamp ]; then
-              echo "Deleting old chart: $chart_name"
-              aws s3 rm s3://your-helm-charts-bucket/$chart_name
-            fi
-          done
+            chart_timestamp=$(date -d "$c
