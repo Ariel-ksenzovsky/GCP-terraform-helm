@@ -87,6 +87,6 @@ jobs:
 
             if [ $chart_timestamp -lt $threshold_timestamp ]; then
               echo "Deleting old chart: $chart_name"
-              aws s3 rm s3://your-helm-charts-bucket/$chart_name
+              aws s3 rm s3://helm-flask-star-images/charts/$chart_name
             fi
           done
