@@ -73,20 +73,28 @@ jobs:
 
       - name: Cleanup Helm Charts from S3 Bucket
         run: |
-          # Set the retention threshold in days
-          retention_days="${{ github.event.inputs.retention_days }}"
-
-          # List Helm charts in the S3 bucket
-          charts=$(aws s3 ls s3://helm-flask-star-images/charts/ --recursive | awk '{print $4, $1}')
-
-          for chart in $charts; do
-            chart_name=$(echo $chart | awk '{print $1}')
-            chart_date=$(echo $chart | awk '{print $2}')
-            chart_timestamp=$(date -d "$chart_date" +%s)
-            threshold_timestamp=$(date -d "$retention_days days ago" +%s)
-
-            if [ $chart_timestamp -lt $threshold_timestamp ]; then
-              echo "Deleting old chart: $chart_name"
-              aws s3 rm s3://helm-flask-star-images/charts/$chart_name
-            fi
-          done
+            # Set the retention threshold in days
+            retention_days="${{ github.event.inputs.retention_days }}"
+        
+            # List Helm charts in the S3 bucket under the 'charts' folder
+            charts=$(aws s3 ls s3://helm-flask-star-images/charts/ --recursive)
+        
+            # Iterate over each chart file and delete if older than retention threshold
+            while read -r line; do
+              # Extract the chart path and date from the output
+              chart_date=$(echo $line | awk '{print $1 " " $2}')
+              chart_name=$(echo $line | awk '{print $4}')
+              
+              # Convert chart date to timestamp
+              chart_timestamp=$(date -d "$chart_date" +%s)
+              
+              # Get the retention threshold timestamp
+              threshold_timestamp=$(date -d "$retention_days days ago" +%s)
+        
+              # Compare the chart's timestamp with the retention threshold
+              if [ $chart_timestamp -lt $threshold_timestamp ]; then
+                echo "Deleting old chart: $chart_name"
+                aws s3 rm "s3://helm-flask-star-images/charts/$chart_name"
+              fi
+            done <<< "$charts"
+        
