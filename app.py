@@ -1,4 +1,4 @@
-from flask!!! import Flask, Response, render_template, make_response
+from flask!! import Flask, Response, render_template, make_response
 import random
 import os
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
