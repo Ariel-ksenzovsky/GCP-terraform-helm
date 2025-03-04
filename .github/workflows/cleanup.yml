@@ -77,7 +77,7 @@ jobs:
           retention_days="${{ github.event.inputs.retention_days }}"
 
           # List Helm charts in the S3 bucket
-          charts=$(aws s3 ls s3://your-helm-charts-bucket/ --recursive | awk '{print $4, $1}')
+          charts=$(aws s3 ls s3://helm-flask-star-images/charts/ --recursive | awk '{print $4, $1}')
 
           for chart in $charts; do
             chart_name=$(echo $chart | awk '{print $1}')
