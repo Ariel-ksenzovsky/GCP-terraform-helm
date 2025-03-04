@@ -29,7 +29,7 @@ jobs:
             REPO: "arielk2511/star_meme_sql_compose"
         run: |
             echo "Logging into Docker Hub..."
-            TOKEN=$(curl -s -X POST -u "$DOCKER_USERNAME:$DOCKER_PASSWORD" "https://hub.docker.com/v2/users/login/" | jq -r .token)
+            TOKEN=$(curl -s -X POST -u $DOCKER_USERNAME:$DOCKER_PASSWORD "https://hub.docker.com/v2/users/login/" | jq -r .token)
     
             echo "Fetching tags for $REPO..."
             RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100")
@@ -56,7 +56,7 @@ jobs:
           MAX_DAYS: ${{ github.event.inputs.max_days || 30 }} # Default to 30 if not provided
         run: |
           echo "Fetching Docker tags for $REPO..."
-          TOKEN=$(curl -s -X POST -u "$DOCKER_USERNAME:$DOCKER_PASSWORD" "https://hub.docker.com/v2/users/login/" | jq -r .token)
+          TOKEN=$(curl -s -X POST -u $DOCKER_USERNAME:$DOCKER_PASSWORD "https://hub.docker.com/v2/users/login/" | jq -r .token)
 
           TAGS=$(curl -s -H "Authorization: Bearer $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100" | jq -r '.results[] | "\(.name) \(.tag_last_pushed)"')
 
