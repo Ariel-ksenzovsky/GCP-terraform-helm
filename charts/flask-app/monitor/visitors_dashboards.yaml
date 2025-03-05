@@ -116,6 +116,99 @@ data:
     }
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-app-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  loki-app-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "Log Viewer Dashboard for Loki",
+      "editable": false,
+      "id": 31,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "ceewskvba4phcf"
+          },
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "id": 6,
+          "options": {
+            "legend": { "showLegend": false },
+            "tooltip": { "mode": "multi" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "ceewskvba4phcf" },
+              "expr": "sum(count_over_time({job=\"$app\"} |= \"$search\" [$__interval]))",
+              "refId": "A"
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "ceewskvba4phcf" },
+          "gridPos": { "h": 25, "w": 24, "x": 0, "y": 3 },
+          "id": 2,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "ceewskvba4phcf" },
+              "expr": "{job=\"$app\"} |= \"$search\" | logfmt",
+              "refId": "A"
+            }
+          ],
+          "type": "logs"
+        }
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": { "text": "argocd/argocd-application-controller", "value": "argocd/argocd-application-controller" },
+            "datasource": "ceewskvba4phcf",
+            "definition": "label_values(job)",
+            "label": "App",
+            "name": "app",
+            "query": "label_values(job)",
+            "type": "query"
+          },
+          {
+            "current": { "text": "", "value": "" },
+            "label": "String Match",
+            "name": "search",
+            "type": "textbox"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Logs / App",
+      "uid": "sadlil-loki-apps-dashboard",
+      "version": 1
+    }
+---
 
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

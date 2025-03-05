@@ -56,7 +56,27 @@ jobs:
           echo "Updating Chart version to $CHART_VERSION"
           sed -i "s/^version:.*/version: $CHART_VERSION/" charts/flask-app/Chart.yaml
           cat charts/flask-app/Chart.yaml  # Debugging to verify update
-    
+
+      - name: Download Image Tag Artifact from CI-image - Only If Triggered By CI-image
+        if: ${{ github.event.workflow_run.name == 'CI-image' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: version
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.REPO_TOKEN }}
+          
+
+      - name: Update Image Tag in values.yaml - Only If Triggered By CI-image
+        if: ${{ github.event.workflow_run.name == 'CI-image' }}
+        run: |
+          set -x
+          ls -lrta
+          VERSION=$(cat VERSION.txt)
+          echo "updating image tag in values.yaml to ${VERSION}"
+          cd charts/flask-app
+          sed -i "s/tag: .*/tag: ${VERSION}/g" ./values.yaml
+          cat ./values.yaml
+
       - name: Package Helm Chart
         run: |
           helm package charts/flask-app

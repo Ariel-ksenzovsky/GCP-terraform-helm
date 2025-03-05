@@ -109,22 +109,24 @@ jobs:
           gcloud components install gke-gcloud-auth-plugin
           helm upgrade --install ariel-flask-app flask-repo/flask-app
 
-      - name: rollout flask-app from k8s
-        run: |
-          set -ex
-          kubectl rollout restart deployment flask-app || true
+      # - name: rollout flask-app from k8s
+      #   run: |
+      #     set -ex
+      #     kubectl rollout restart deployment flask-app || true
       
       - name: Verify Monitor Stack Is Up & Running # -q on grep is quiet mode.
         run: |
           set -x
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitor -f charts/flask-app/monitor/prom-values.yaml
-          kubectl apply -f charts/flask-app/monitor/visitors_dashboards.yaml
       
       - name: install loki
         run: |
           helm repo add grafana https://grafana.github.io/helm-charts
-          helm upgrade --install loki grafana/loki 
-  
+          helm upgrade --install loki grafana/loki-stack -n monitor --set loki.image.tag=2.9.3 # Due to a problem with the last image, we are using this image.
+      
+      - name: install dashboards
+        run: |
+          kubectl apply -f charts/flask-app/monitor/visitors_dashboards.yaml
       
 

@@ -53,11 +53,6 @@ jobs:
       run: |
        docker push ${{ env.IMAGE}}:latest
        docker push ${{ env.IMAGE }}:${{ env.VERSION }}  
-
-    - name: Update values.yaml with version
-      run: |
-         sed -i "s/tag:.*/tag: \"${{ env.VERSION }}\"/" charts/flask-app/values.yaml
-         cat charts/flask-app/values.yaml  # Print out for debugging
     
     - name: Set up Docker Compose environment variables
       run: |
@@ -67,6 +62,17 @@ jobs:
          echo "DB_NAME=${{ vars.DB_NAME }}" >> $GITHUB_ENV
          echo "DB_USER=${{ vars.DB_USER }}" >> $GITHUB_ENV
          echo "FLASK_PORT=${{ vars.FLASK_PORT }}" >> $GITHUB_ENV
+    
+    - name: create text file for artifacts
+      run: |
+        echo "${VERSION}" > version.txt
+        cat version.txt
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: version
+        path: version.txt
 
     - name: Run Tests
       run: |
