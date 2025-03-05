@@ -71,7 +71,7 @@ jobs:
         run: |
           set -x
           ls -lrta
-          VERSION=$(cat VERSION.txt)
+          VERSION=$(cat version.txt)
           echo "updating image tag in values.yaml to ${VERSION}"
           cd charts/flask-app
           sed -i "s/tag: .*/tag: ${VERSION}/g" ./values.yaml
